@@ -1,0 +1,119 @@
+function onOpen() 
+{
+  var ui = SpreadsheetApp.getUi();
+  ui.createMenu('Automation')
+      .addItem('send PDF Form', 'sendPDFForm')
+      .addItem('send to all', 'sendFormToAll')
+      .addToUi();
+}
+
+function sendPDFForm()
+{
+  var row = SpreadsheetApp.getActiveSheet().getActiveCell().getRow();
+  sendEmailWithAttachment(row);
+}
+
+function sendEmailWithAttachment(row)
+{
+  var filename= 'fillable-form-5516.pdf';
+  
+  var file = DriveApp.getFilesByName(filename);
+  
+  if (!file.hasNext()) 
+  {
+    console.error("Could not open file "+filename);
+    return;
+  }
+  
+  var client = getClientInfo(row);
+  
+  var template = HtmlService
+      .createTemplateFromFile('email-template');
+  template.client = client;
+  var message = template.evaluate().getContent();
+  
+  
+  MailApp.sendEmail({
+    to: client.email,
+    subject: "The form to fill",
+    htmlBody: message,
+    attachments: [file.next().getAs(MimeType.PDF)]
+  });
+  
+}
+
+function getClientInfo(row)
+{
+   var sheet = SpreadsheetApp.getActive().getSheetByName('Sheet1');
+   
+   var values = sheet.getRange(row,1,row,3).getValues();
+   var rec = values[0];
+  
+  var client = 
+      {
+        first_name: rec[0],
+        last_name: rec[1],
+        email: rec[2]
+      };
+  client.name = client.first_name+' '+client.last_name;
+  return client;
+}
+
+function sendFormToAll()
+{
+   var sheet = SpreadsheetApp.getActive().getSheetByName('Sheet1');
+  
+   var last_row = sheet.getDataRange().getLastRow();
+  
+   for(var row=2; row <= last_row; row++)
+   {
+     sendEmailWithAttachment(row);
+     sheet.getRange(row,4).setValue("email sent");
+   }
+}
+
+
+
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+  </head>
+  <body>
+    <h2>Fill this form and send back to us</h2>
+    <p>Hello <?= client.name ?> </p>
+    <p>This is the second part of the process.</p>
+    <p>Please find the attached form.</p>
+    <p>You are to make sure the form reaches our office within next two weeks</p>
+    
+    
+    <p>Thanks<br/></p>
+    Company.com
+    
+  </body>
+</html>
+
+
+  //Send active sheet as email attachment
+
+function myFunction() 
+{
+    var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sheet = ss.getActiveSheet();
+  var ssID = SpreadsheetApp.getActiveSpreadsheet().getId();
+  var sheetgId = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet().getSheetId();
+  var email = Session.getUser().getEmail();
+  var subject = "Order no.";
+  var body = "Hello";
+  var lastRow = sheet.getLastRow();
+  var colB_Data = sheet.getRange(lastRow, 2).getValue();
+
+  var url = "https://docs.google.com/spreadsheets/d/"+ssID+"/export?" + "format=xlsx" +  "&gid="+sheetgId+ "&portrait=true" + "&exportFormat=pdf";
+
+
+  var result = UrlFetchApp.fetch(url)
+
+  var contents = result.getContent();
+
+  MailApp.sendEmail("parnellae@gmail.com",subject ,body, {attachments:[{fileName:colB_Data+".pdf", content:contents, mimeType:"application//pdf"}]});
+}
